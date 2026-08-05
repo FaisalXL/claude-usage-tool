@@ -27,18 +27,21 @@ The tool needs no git installation. The tool needs no manual path configuration.
 
 ## Setup
 
-Copy the `.claude/` folder into the root of the assignment template. Distribute this template to students.
+Do not copy the entire `.claude/` folder into an existing repo. Existing folders may contain other files. Overwriting the folder deletes those files.
 
-```
-your-assignment-repo/
-└── .claude/
-    ├── weekly_report.py
-    └── skills/
-        └── weekly-report/
-            └── SKILL.md
+Add only two files instead:
+
+```bash
+mkdir -p .claude/skills/weekly-report
+curl -o .claude/weekly_report.py https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/weekly_report.py
+curl -o .claude/skills/weekly-report/SKILL.md https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md
 ```
 
-No further configuration is necessary. Every student receives the `/weekly-report` command automatically.
+Run these commands inside the assignment repo root. The commands create only two files. The commands preserve all other files in `.claude/`.
+
+For a brand new assignment repo with no existing `.claude/` folder, use the template method instead. Mark this repo as a GitHub template. Click "Use this template" to create the assignment repo. This method copies the full `.claude/` folder safely.
+
+No further configuration is necessary after either method. Every student receives the `/weekly-report` command automatically.
 
 ## Usage
 
