@@ -17,9 +17,9 @@ A hash links both files. The hash detects tampering with either file.
 ### What the report includes
 
 - **Model usage.** The report lists exact token counts per model, per week.
-- **Rate-limit-hit count.** The report counts distinct rate-limit episodes. One 429 event can create many raw error lines. Parallel requests fail together. The tool counts episodes, not raw lines.
+- **Rate-limit-hit count.** The report counts distinct rate-limit episodes.
 - **Purposeful-use signal.** The report calculates the ratio of code-editing tool calls (Edit/Write/Bash/NotebookEdit) to filler calls. It checks whether touched files belong to the assignment repo.
-- **Burst-vs-baseline check.** For each rate-limit hit, the tool compares two time windows before the hit: the 15-minute window and the 5-hour baseline window. A test showed a burst rate of 23.6 calls per minute. The baseline rate was 1.4 calls per minute. This is a 17x spike. Real work does not sustain this rate.
+- **Burst-vs-baseline check.** For each rate-limit hit, the tool compares two time windows before the hit: the 15-minute window and the 5-hour baseline window (this may need tuning after stress testing)
 
 ### Zero-config by design
 
