@@ -39,9 +39,6 @@ curl -o .claude/skills/weekly-report/SKILL.md https://raw.githubusercontent.com/
 
 Run these commands inside the assignment repo root. The commands create only two files. The commands preserve all other files in `.claude/`.
 
-For a brand new assignment repo with no existing `.claude/` folder, use the template method instead. Mark this repo as a GitHub template. Click "Use this template" to create the assignment repo. This method copies the full `.claude/` folder safely.
-
-No further configuration is necessary after either method. Every student receives the `/weekly-report` command automatically.
 
 ## Usage
 
