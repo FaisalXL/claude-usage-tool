@@ -4,8 +4,7 @@ This tool verifies purposeful Claude Code usage for coursework. It tracks per-mo
 
 ## The problem
 
-Some courses require heavy Claude Code usage. Requirements include hitting the rate limit multiple times per week. Students can game these requirements. They spawn parallel filler agents. The agents burn tokens without doing real work. This tool verifies purposeful usage. It works automatically at class scale. It does not require manual log review.
-
+Assignment include hitting the rate limit multiple times per week. Students can game these requirements. The agents burn tokens without doing real work. This tool verifies purposeful usage. It works automatically at class scale.
 ## How it works
 
 The tool is a Claude Code Skill. Students run `/weekly-report` once per week. The skill reads local session logs at `~/.claude/projects/**/*.jsonl`. It requires no telemetry, server, or account access. The skill produces two files:
