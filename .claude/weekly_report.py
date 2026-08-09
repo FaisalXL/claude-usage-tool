@@ -320,7 +320,7 @@ def main():
             resolved = str(Path(fp).resolve())
         except OSError:
             resolved = fp
-        if resolved.startswith(repo_root):
+        if path_is_under(resolved, repo_root):
             real_files.add(fp)
     file_overlap = len(real_files) / len(touched_files) if touched_files else 0
 
