@@ -35,6 +35,7 @@ project folders for the same assignment.
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -110,6 +111,32 @@ def find_marker_root(start_path, marker_relpath=MARKER_RELPATH):
         if (candidate / marker_relpath).exists():
             found = candidate
     return str(found) if found else None
+
+
+def path_is_under(path_str, root_str):
+    """True if path_str is root_str itself or a descendant of it.
+
+    Tries a plain string prefix check first (cheap, and correct on
+    case-sensitive filesystems). Falls back to filesystem identity
+    (os.path.samefile, which compares device+inode) when that fails --
+    on case-insensitive filesystems (the default on macOS and Windows),
+    Path.resolve() does NOT normalize casing, so the same real directory
+    can come back as two different strings depending on how a student's
+    shell/OS happened to report cwd in a given session. samefile() sees
+    through that because it asks the filesystem, not the string."""
+    if path_str == root_str or path_str.startswith(root_str + os.sep):
+        return True
+    try:
+        candidate = Path(path_str)
+    except (OSError, ValueError):
+        return False
+    for ancestor in [candidate, *candidate.parents]:
+        try:
+            if os.path.samefile(ancestor, root_str):
+                return True
+        except OSError:
+            continue
+    return False
 
 
 def resolve_repo_root(path):
@@ -202,7 +229,7 @@ def main():
                     resolved_cwd = str(Path(cwd).resolve())
                 except OSError:
                     resolved_cwd = cwd
-                if not (resolved_cwd == repo_root or resolved_cwd.startswith(repo_root + "/")):
+                if not path_is_under(resolved_cwd, repo_root):
                     continue
 
                 sessions_matched.add(session_id)
