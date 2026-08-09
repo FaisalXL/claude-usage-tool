@@ -3,7 +3,7 @@ name: weekly-report
 description: Generate this week's Claude Code usage report for the assignment (token usage, model usage, tool-call ratios, rate-limit hits) and write it to usage_reports/ for submission. Use when the student asks to run, generate, or submit their weekly usage report.
 ---
 
-Find `.claude/weekly_report.py` using the Glob tool — check the current directory, then each parent directory upward, until you find it. Use Glob, not a shell command, for this search: Glob works identically on every platform, with no dependency on Bash, PowerShell, or git being installed.
+Find `.claude/weekly_report.py`: check the current directory, then each parent directory upward, until you find it. Prefer a Glob tool for this search if one is available in this session — it works identically on every platform, with no dependency on Bash, PowerShell, or git being installed. If no Glob tool is available, fall back to whatever command-execution tool this session has (Bash's `find`/`dirname`, or PowerShell's `Get-ChildItem`) to do the same upward search.
 
 Once found, run it with whichever command-execution tool this session has available (Bash or PowerShell — the command itself is identical either way, so it does not matter which one is used):
 
