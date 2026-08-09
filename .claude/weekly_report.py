@@ -98,12 +98,18 @@ def find_marker_root(start_path, marker_relpath=MARKER_RELPATH):
     directory is, let alone git — wherever inside the assignment folder they
     happen to run the report from, this finds the folder that has the
     marker and treats that as the root. Same trick git/npm/cargo use to find
-    a project root from any subdirectory."""
+    a project root from any subdirectory.
+
+    Deliberately keeps walking past the first match and returns the
+    OUTERMOST one found, not the nearest. If a leftover marker from an old
+    assignment template ends up nested inside this semester's folder, the
+    whole-assignment root should still win, not the incidental nested one."""
     current = Path(start_path).expanduser().resolve()
+    found = None
     for candidate in [current, *current.parents]:
         if (candidate / marker_relpath).exists():
-            return str(candidate)
-    return None
+            found = candidate
+    return str(found) if found else None
 
 
 def resolve_repo_root(path):
