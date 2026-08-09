@@ -23,9 +23,11 @@ A hash links both files. The hash detects tampering with either file.
 
 ### Zero-config by design
 
-The tool needs no git installation. The tool needs no manual path configuration. The script and the skill search upward from the current directory. They search for the assignment root folder. This method works from any subfolder.
+The tool needs no git installation and no manual path configuration. The script and the skill search upward from the current directory for the course root folder. This works from any subfolder, in any assignment.
 
 ## Setup
+
+Install once, in your course's root folder — the one folder that contains all your assignment folders. Not per assignment.
 
 Do not copy the entire `.claude/` folder into an existing repo. Existing folders may contain other files. Overwriting the folder deletes those files.
 
@@ -37,7 +39,7 @@ curl -o .claude/weekly_report.py https://raw.githubusercontent.com/FaisalXL/clau
 curl -o .claude/skills/weekly-report/SKILL.md https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md
 ```
 
-Run these commands inside the assignment repo root. The commands create only two files. The commands preserve all other files in `.claude/`.
+Run these commands inside your course root, not inside an individual assignment folder. The commands create only two files. The commands preserve all other files in `.claude/`.
 
 
 ## Usage
@@ -48,14 +50,15 @@ At the end of each week, the student runs `/weekly-report`.
 /weekly-report
 ```
 
-The student runs this command inside Claude Code. The command works from any subfolder in the assignment folder. The command reports the current week by default. Add a number to view a prior week. For example, `/weekly-report 1` reports last week.
+Run this from anywhere in the course folder — any assignment, any subfolder. It always reports on the whole course for that week, not just one assignment. Reports the current week by default; add a number for a prior week (`/weekly-report 1` = last week).
 
-The tool writes both output files to `usage_reports/` in the assignment root. The student submits both files with the regular coursework.
+The tool writes both output files to `usage_reports/` in the course root, once per week. Submit both files.
 
 ## Known limitations / open items
 
 - The field `weekly_cap_pct_estimate` requires the student's plan tier. Anthropic changed published caps multiple times in 2026. This field remains `null` until you add real cap numbers. Add these numbers to `WEEKLY_TOKEN_CAP_ESTIMATE` in `weekly_report.py`.
 - The burst check detects fast, parallel gaming patterns. It does not detect slow, sequential gaming patterns. The code-ratio and file-overlap signals catch sequential gaming instead.
+- The report is scoped to the whole course, not one assignment — it proves general weekly engagement, not that a specific assignment got worked on. Check the submitted transcript directly if you need that.
 - The transcript file contains full conversation content. This includes prompts and tool outputs, not only metrics. Inform students that this data is collected.
 
 ## Validation
