@@ -36,7 +36,6 @@ import argparse
 import hashlib
 import json
 import os
-import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -145,22 +144,17 @@ def resolve_repo_root(path):
         return marker_root
 
     # No marker found (e.g. running this file standalone while testing, not
-    # via the shipped template) — fall back to git, then to the literal path.
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(path), "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, check=True,
-        )
-        return out.stdout.strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        resolved = str(Path(path).expanduser().resolve())
-        print(
-            f"warning: no {MARKER_RELPATH} found above {path}, and it's not a git repo either; "
-            f"falling back to {resolved} as the match root. Matching may be unreliable if this "
-            "isn't actually the assignment folder.",
-            file=sys.stderr,
-        )
-        return resolved
+    # via the shipped template). No git dependency by design -- fall straight
+    # back to the literal path, since the marker is the only thing that ever
+    # identifies an assignment root.
+    resolved = str(Path(path).expanduser().resolve())
+    print(
+        f"warning: no {MARKER_RELPATH} found above {path}; falling back to {resolved} "
+        "as the match root. Matching may be unreliable if this isn't actually the "
+        "assignment folder.",
+        file=sys.stderr,
+    )
+    return resolved
 
 
 def main():
