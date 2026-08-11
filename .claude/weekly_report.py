@@ -210,14 +210,24 @@ def main():
     sessions_matched = set()          # cwd under repo_root
 
     for path in jsonl_paths:
-        with open(path, errors="ignore") as f:
+        # Binary mode on purpose. These logs are always UTF-8, but Python's
+        # text mode defaults to the *locale* encoding, which on Windows is
+        # cp1252 -- that mangles every non-ASCII character (a literal "·" in
+        # Claude Code's own rate-limit message came back as "Â·"), and
+        # errors="ignore" silently deletes bytes cp1252 leaves undefined.
+        # Worse, the mangled text was then re-encoded on the way into the
+        # transcript, so the file the integrity hash covers no longer matched
+        # the real log bytes it is supposed to attest to. Reading bytes and
+        # hashing them directly keeps the transcript byte-exact on every
+        # platform; json.loads decodes UTF-8 itself.
+        with open(path, "rb") as f:
             for line in f:
                 line = line.strip()
                 if not line:
                     continue
                 try:
                     obj = json.loads(line)
-                except json.JSONDecodeError:
+                except (json.JSONDecodeError, UnicodeDecodeError):
                     continue
 
                 ts = obj.get("timestamp")
@@ -239,7 +249,7 @@ def main():
                     continue
 
                 sessions_matched.add(session_id)
-                raw_lines_for_hash.append(line.encode())
+                raw_lines_for_hash.append(line)  # already bytes, straight from the log
                 t = obj.get("type")
 
                 if t == "assistant" and obj.get("error") == "rate_limit":
@@ -386,7 +396,7 @@ def main():
     report_path = out_dir / f"{stem}.json"
     transcript_path = out_dir / f"{stem}.transcript.jsonl"
 
-    report_path.write_text(json.dumps(report, indent=2, sort_keys=True))
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
     transcript_path.write_bytes(transcript_bytes)
 
     print(json.dumps(report, indent=2, sort_keys=True))
