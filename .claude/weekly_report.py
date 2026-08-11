@@ -385,9 +385,24 @@ def main():
     # reset-time message (every in-flight parallel call fails with the same
     # underlying limit) — group by that exact text so 18 raw error lines from
     # one episode count as 1, not 18.
+    #
+    # Message text alone is not enough of a key, though: the message names the
+    # reset time ("resets 4:50pm") but not the date, so hitting the limit at a
+    # similar hour on Monday and again on Wednesday produces byte-identical
+    # text, and three separate episodes collapsed into one four-day "episode"
+    # -- undercounting the exact thing the coursework grades on.
+    #
+    # The day is taken in LOCAL time, not UTC. UTC midnight is 5pm in
+    # California and 8pm on the US east coast, i.e. squarely inside working
+    # hours, so a UTC-day key would split one real evening episode into two
+    # and invent a limit hit that never happened. Local midnight is when
+    # almost nobody is mid-session, so the boundary is far less likely to fall
+    # inside an episode.
     episodes_by_key = {}
     for ev in limit_hit_events_raw:
-        episodes_by_key.setdefault((ev["message"], ""), []).append(ev)
+        ev_dt = parse_ts(ev["timestamp"])
+        local_day = ev_dt.astimezone().date().isoformat() if ev_dt else "unknown-date"
+        episodes_by_key.setdefault((ev["message"], local_day), []).append(ev)
 
     limit_hit_episodes = []
     # Parsed once here rather than inside each episode's window filter, which
@@ -417,6 +432,7 @@ def main():
 
         limit_hit_episodes.append({
             "message": message,
+            "local_day": local_day,
             "first_hit": first_ts,
             "last_hit": evs[-1]["timestamp"],
             "raw_429_count": len(evs),
