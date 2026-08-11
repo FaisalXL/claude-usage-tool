@@ -27,41 +27,23 @@ The tool needs no git installation and no manual path configuration. `/weekly-re
 
 ## Setup
 
-Two separate installs, both one-time:
+Run this once, from your course root — the one folder that contains all your assignment folders. Not per assignment.
 
-**1. In your course's root folder** — the one folder that contains all your assignment folders. Not per assignment.
-
-Do not copy the entire `.claude/` folder into an existing repo. Existing folders may contain other files. Overwriting the folder deletes those files.
-
-macOS / Linux (bash):
+macOS / Linux:
 ```bash
-mkdir -p .claude/skills/weekly-report
-curl -o .claude/weekly_report.py https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/weekly_report.py
-curl -o .claude/skills/weekly-report/SKILL.md https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md
+curl -O https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/install.py
+python3 install.py
 ```
 
-Windows (PowerShell -- not cmd.exe; `mkdir -p` and `~` are bash-only and don't work in cmd.exe):
-```powershell
-mkdir -Force .claude\skills\weekly-report
-Invoke-WebRequest -Uri https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/weekly_report.py -OutFile .claude\weekly_report.py
-Invoke-WebRequest -Uri https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md -OutFile .claude\skills\weekly-report\SKILL.md
+Windows:
+```
+curl.exe -O https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/install.py
+python install.py
 ```
 
-**2. In your home directory** — once ever, not per course:
+The installer is Python, not shell, so it behaves identically in cmd.exe, PowerShell, and bash — no `mkdir -p`, no `~` expansion, no path-separator differences. It creates only the files it needs and preserves everything else already in `.claude/`.
 
-macOS / Linux (bash):
-```bash
-mkdir -p ~/.claude/skills/weekly-report
-curl -o ~/.claude/skills/weekly-report/SKILL.md https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md
-```
-
-Windows (PowerShell):
-```powershell
-mkdir -Force "$env:USERPROFILE\.claude\skills\weekly-report"
-Invoke-WebRequest -Uri https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md -OutFile "$env:USERPROFILE\.claude\skills\weekly-report\SKILL.md"
-```
-
-Why two installs instead of one: Claude Code's own skill-discovery search stops at a git repository boundary if the folder you're standing in has its own `.git` (a common case — students often `git init` inside an individual assignment folder). A skill installed only at the course root would then silently fail to be recognized from inside any assignment that happens to have its own nested repo. Installing `SKILL.md` personally, in the home directory, sidesteps that entirely -- personal skills load unconditionally, regardless of `cwd` or git nesting anywhere. `weekly_report.py`'s own root search still looks for `SKILL.md`, same file, at the course root -- it deliberately ignores any copy found exactly at the home directory, so the personal install above can't itself get mistaken for the course root and scope a report to the student's entire home directory.
+It installs to two places: `weekly_report.py` and `SKILL.md` in your course root, plus a second copy of `SKILL.md` in your home directory. The second copy is needed because Claude Code's skill-discovery search stops at a git repository boundary — if you `git init` inside an individual assignment folder (common), a skill installed only at the course root is silently not recognized from inside it. Personal skills in the home directory load unconditionally, regardless of `cwd` or git nesting. `weekly_report.py`'s own root search deliberately ignores any copy found at the home directory itself, so that second copy can't be mistaken for your course root.
 
 
 ## Usage
