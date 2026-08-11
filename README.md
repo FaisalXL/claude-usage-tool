@@ -33,17 +33,32 @@ Two separate installs, both one-time:
 
 Do not copy the entire `.claude/` folder into an existing repo. Existing folders may contain other files. Overwriting the folder deletes those files.
 
+macOS / Linux (bash):
 ```bash
 mkdir -p .claude/skills/weekly-report
 curl -o .claude/weekly_report.py https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/weekly_report.py
 curl -o .claude/skills/weekly-report/SKILL.md https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md
 ```
 
+Windows (PowerShell -- not cmd.exe; `mkdir -p` and `~` are bash-only and don't work in cmd.exe):
+```powershell
+mkdir -Force .claude\skills\weekly-report
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/weekly_report.py -OutFile .claude\weekly_report.py
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md -OutFile .claude\skills\weekly-report\SKILL.md
+```
+
 **2. In your home directory** — once ever, not per course:
 
+macOS / Linux (bash):
 ```bash
 mkdir -p ~/.claude/skills/weekly-report
 curl -o ~/.claude/skills/weekly-report/SKILL.md https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md
+```
+
+Windows (PowerShell):
+```powershell
+mkdir -Force "$env:USERPROFILE\.claude\skills\weekly-report"
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md -OutFile "$env:USERPROFILE\.claude\skills\weekly-report\SKILL.md"
 ```
 
 Why two installs instead of one: Claude Code's own skill-discovery search stops at a git repository boundary if the folder you're standing in has its own `.git` (a common case — students often `git init` inside an individual assignment folder). A skill installed only at the course root would then silently fail to be recognized from inside any assignment that happens to have its own nested repo. Installing `SKILL.md` personally, in the home directory, sidesteps that entirely -- personal skills load unconditionally, regardless of `cwd` or git nesting anywhere. `weekly_report.py`'s own root search still looks for `SKILL.md`, same file, at the course root -- it deliberately ignores any copy found exactly at the home directory, so the personal install above can't itself get mistaken for the course root and scope a report to the student's entire home directory.
