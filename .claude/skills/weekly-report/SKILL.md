@@ -11,6 +11,11 @@ Once found, run it with whichever command-execution tool this session has availa
 python3 <path-to-weekly_report.py> --weeks-back <N>
 ```
 
+Use whichever Python launcher actually exists on this machine. `python3` is
+correct on macOS and Linux, but many Windows installations provide only
+`python` or `py` — if `python3` is not found, retry the same command with
+`python`, then `py`, before reporting a failure.
+
 Use `<N>` as the number the student gave as an argument to this command (e.g. `/weekly-report 1` means `--weeks-back 1`). If the student gave no argument, use `0`.
 
 If no `.claude/weekly_report.py` is found in the current directory or any parent directory, tell the student: "Could not find the assignment folder — make sure you're running this from inside the assignment folder you were given."
