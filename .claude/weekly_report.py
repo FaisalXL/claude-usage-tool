@@ -103,10 +103,22 @@ def find_marker_root(start_path, marker_relpath=MARKER_RELPATH):
     Deliberately keeps walking past the first match and returns the
     OUTERMOST one found, not the nearest. If a leftover marker from an old
     assignment template ends up nested inside this semester's folder, the
-    whole-assignment root should still win, not the incidental nested one."""
+    whole-assignment root should still win, not the incidental nested one.
+
+    The home directory itself is deliberately excluded from matches. SKILL.md
+    also gets installed personally at ~/.claude/skills/weekly-report/ (see
+    SKILL.md's own install notes) so /weekly-report still gets recognized
+    even when invoked from inside a subfolder with its own nested git repo --
+    Claude Code's skill *discovery* stops at a git boundary; this search does
+    not. Without this exclusion, that personal copy would itself match as an
+    even more "outermost" marker than the real course root, silently scoping
+    every report to the student's whole home directory."""
     current = Path(start_path).expanduser().resolve()
+    home = Path.home().resolve()
     found = None
     for candidate in [current, *current.parents]:
+        if candidate == home:
+            continue
         if (candidate / marker_relpath).exists():
             found = candidate
     return str(found) if found else None

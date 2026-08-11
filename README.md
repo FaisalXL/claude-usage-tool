@@ -23,15 +23,15 @@ A hash links both files. The hash detects tampering with either file.
 
 ### Zero-config by design
 
-The tool needs no git installation and no manual path configuration. The script and the skill search upward from the current directory for the course root folder. This works from any subfolder, in any assignment.
+The tool needs no git installation and no manual path configuration. `/weekly-report` itself is always recognized, from anywhere, since it's installed personally rather than discovered per-folder. Once invoked, it searches upward from wherever you are for the course root -- this works from any subfolder, in any assignment, regardless of whether that subfolder has its own git repo.
 
 ## Setup
 
-Install once, in your course's root folder — the one folder that contains all your assignment folders. Not per assignment.
+Two separate installs, both one-time:
+
+**1. In your course's root folder** — the one folder that contains all your assignment folders. Not per assignment.
 
 Do not copy the entire `.claude/` folder into an existing repo. Existing folders may contain other files. Overwriting the folder deletes those files.
-
-Add only two files instead:
 
 ```bash
 mkdir -p .claude/skills/weekly-report
@@ -39,7 +39,14 @@ curl -o .claude/weekly_report.py https://raw.githubusercontent.com/FaisalXL/clau
 curl -o .claude/skills/weekly-report/SKILL.md https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md
 ```
 
-Run these commands inside your course root, not inside an individual assignment folder. The commands create only two files. The commands preserve all other files in `.claude/`.
+**2. In your home directory** — once ever, not per course:
+
+```bash
+mkdir -p ~/.claude/skills/weekly-report
+curl -o ~/.claude/skills/weekly-report/SKILL.md https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md
+```
+
+Why two installs instead of one: Claude Code's own skill-discovery search stops at a git repository boundary if the folder you're standing in has its own `.git` (a common case — students often `git init` inside an individual assignment folder). A skill installed only at the course root would then silently fail to be recognized from inside any assignment that happens to have its own nested repo. Installing `SKILL.md` personally, in the home directory, sidesteps that entirely -- personal skills load unconditionally, regardless of `cwd` or git nesting anywhere. `weekly_report.py`'s own root search still looks for `SKILL.md`, same file, at the course root -- it deliberately ignores any copy found exactly at the home directory, so the personal install above can't itself get mistaken for the course root and scope a report to the student's entire home directory.
 
 
 ## Usage
