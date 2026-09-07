@@ -514,7 +514,7 @@ def main():
     print(json.dumps(report, indent=2, sort_keys=True))
     print(f"\nWrote report to:     {report_path}", file=sys.stderr)
     print(f"Wrote transcript to: {transcript_path}", file=sys.stderr)
-    print("Submit BOTH files.", file=sys.stderr)
+    print("Check with your course for what to submit -- usually the .json plus a /usage screenshot.", file=sys.stderr)
 
 
 if __name__ == "__main__":

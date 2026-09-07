@@ -56,7 +56,7 @@ At the end of each week, the student runs `/weekly-report`.
 
 Run this from anywhere in the course folder — any assignment, any subfolder. It always reports on the whole course for that week, not just one assignment. Reports the current week by default; add a number for a prior week (`/weekly-report 1` = last week).
 
-The tool writes both output files to `usage_reports/` in the course root, once per week. Submit both files.
+The tool writes both output files to `usage_reports/` in the course root, once per week. Check with your course for what to submit.
 
 ## Known limitations / open items
 
