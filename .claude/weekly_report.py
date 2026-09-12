@@ -687,8 +687,10 @@ def main():
         "file_overlap": round(file_overlap, 3),
         "tool_counts": tool_counts,
         "total_tool_calls": total_tool_calls,
-        "limit_hit_count": len(limit_hit_episodes),
-        "limit_hit_raw_429_count": len(limit_hit_events_raw),
+        # No separate count fields here: len(limit_hit_episodes) is the
+        # episode count, and sum(e["raw_429_count"] for e in ...) is the raw
+        # 429 count -- both fully derivable from the list itself, so a
+        # parallel top-level number would just be the same data twice.
         "limit_hit_episodes": limit_hit_episodes,
         "integrity_hash_sha256": integrity_hash,
         # Surfaced rather than silently swallowed: anything nonzero here means
