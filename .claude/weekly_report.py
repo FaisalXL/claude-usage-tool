@@ -692,7 +692,6 @@ def main():
         # 429 count -- both fully derivable from the list itself, so a
         # parallel top-level number would just be the same data twice.
         "limit_hit_episodes": limit_hit_episodes,
-        "integrity_hash_sha256": integrity_hash,
         # Surfaced rather than silently swallowed: anything nonzero here means
         # some lines did not make it into the numbers above, and a grader
         # should be able to see that instead of trusting a quietly short count.
@@ -703,6 +702,10 @@ def main():
         # eyeballs at a glance; this is the detail for actually digging into
         # what happened on a specific day.
         "daily_breakdown": daily_breakdown,
+        # Truly last -- almost never looked at directly by a student or a
+        # grader; it only matters on the rare occasion someone needs to
+        # confirm a submitted transcript matches the submitted report.
+        "integrity_hash_sha256": integrity_hash,
     }
 
     # The report is written as a file rather than copy-pasted from the
