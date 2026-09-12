@@ -348,6 +348,18 @@ def main():
 
     hasher = hashlib.sha256()
     seen_line_digests = set()   # exact-duplicate suppression, see below
+    # Claude Code logs one JSONL line per content block (thinking, text, each
+    # tool_use) that makes up a single assistant turn, not one line per turn --
+    # every one of those lines carries the SAME message.usage, repeated
+    # verbatim. Lines sharing a message.id are the same turn, not distinct
+    # turns; confirmed directly against real logs, where a single turn (11
+    # parallel tool calls) was split across 13 lines, each with identical
+    # usage. Summing usage per line (rather than per unique message.id) was
+    # inflating token counts by ~2x on average, and by as much as 13x for a
+    # single heavily-parallel turn. tool_use blocks are NOT affected by this
+    # and must stay counted per line -- each one appears on exactly one line,
+    # never repeated, so per-line counting is already correct there.
+    counted_message_ids = set()
     duplicate_lines = 0
     skipped_bad_timestamp = 0
     skipped_malformed = 0
@@ -457,31 +469,46 @@ def main():
                         msg = obj.get("message") or {}
                         model = msg.get("model", "unknown")
                         usage = msg.get("usage") or {}
-                        u_input = usage.get("input_tokens", 0)
-                        u_cache_creation = usage.get("cache_creation_input_tokens", 0)
-                        u_cache_read = usage.get("cache_read_input_tokens", 0)
-                        u_output = usage.get("output_tokens", 0)
-                        inp = u_input + u_cache_creation + u_cache_read
-                        out = u_output
+                        mid = msg.get("id")
 
-                        tokens_input += u_input
-                        tokens_cache_creation += u_cache_creation
-                        tokens_cache_read += u_cache_read
-                        tokens_output += u_output
-                        d["tokens_input"] += u_input
-                        d["tokens_cache_creation"] += u_cache_creation
-                        d["tokens_cache_read"] += u_cache_read
-                        d["tokens_output"] += u_output
+                        # Count usage/turns once per unique message.id. A
+                        # missing id can't be correlated against anything, so
+                        # it's always treated as its own turn rather than
+                        # risking under-counting real, distinct usage.
+                        if mid is None or mid not in counted_message_ids:
+                            u_input = usage.get("input_tokens", 0)
+                            u_cache_creation = usage.get("cache_creation_input_tokens", 0)
+                            u_cache_read = usage.get("cache_read_input_tokens", 0)
+                            u_output = usage.get("output_tokens", 0)
+                            inp = u_input + u_cache_creation + u_cache_read
+                            out = u_output
 
-                        m = model_usage.setdefault(model, {"turns": 0, "input_tokens": 0, "output_tokens": 0})
-                        m["turns"] += 1
-                        m["input_tokens"] += inp
-                        m["output_tokens"] += out
-                        dm = d["model_usage"].setdefault(model, {"turns": 0, "input_tokens": 0, "output_tokens": 0})
-                        dm["turns"] += 1
-                        dm["input_tokens"] += inp
-                        dm["output_tokens"] += out
+                            tokens_input += u_input
+                            tokens_cache_creation += u_cache_creation
+                            tokens_cache_read += u_cache_read
+                            tokens_output += u_output
+                            d["tokens_input"] += u_input
+                            d["tokens_cache_creation"] += u_cache_creation
+                            d["tokens_cache_read"] += u_cache_read
+                            d["tokens_output"] += u_output
 
+                            m = model_usage.setdefault(model, {"turns": 0, "input_tokens": 0, "output_tokens": 0})
+                            m["turns"] += 1
+                            m["input_tokens"] += inp
+                            m["output_tokens"] += out
+                            dm = d["model_usage"].setdefault(model, {"turns": 0, "input_tokens": 0, "output_tokens": 0})
+                            dm["turns"] += 1
+                            dm["input_tokens"] += inp
+                            dm["output_tokens"] += out
+
+                            if mid is not None:
+                                counted_message_ids.add(mid)
+
+                        # tool_use blocks are unaffected by the dedup above --
+                        # each one is logged on exactly one line, never
+                        # repeated across a turn's split lines, so every line
+                        # still needs to be walked for these regardless of
+                        # whether its usage was already counted.
                         content = msg.get("content")
                         for block in (content if isinstance(content, list) else []):
                             if isinstance(block, dict) and block.get("type") == "tool_use":
