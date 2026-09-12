@@ -720,10 +720,12 @@ def main():
     # would undo it (range would land near the bottom, after limit_hit_*).
     report_path.write_text(json.dumps(report, indent=2, sort_keys=False), encoding="utf-8")
 
-    print(json.dumps(report, indent=2, sort_keys=False))
-    print(f"\nWrote report to:     {report_path}", file=sys.stderr)
-    print(f"Wrote transcript to: {transcript_path}", file=sys.stderr)
-    print("Check with your course for what to submit -- usually the .json plus a /usage screenshot.", file=sys.stderr)
+    # The full report is written to disk, not printed -- a run covering many
+    # sessions produces a JSON large enough to be unreadable (and slow to
+    # scroll past) in a terminal. Print only where to find it.
+    print(f"Wrote report to:     {report_path}")
+    print(f"Wrote transcript to: {transcript_path}")
+    print("Check with your course for what to submit -- usually the .json plus a /usage screenshot.")
 
 
 if __name__ == "__main__":
