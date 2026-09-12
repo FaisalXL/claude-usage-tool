@@ -725,7 +725,6 @@ def main():
     # scroll past) in a terminal. Print only where to find it.
     print(f"Wrote report to:     {report_path}")
     print(f"Wrote transcript to: {transcript_path}")
-    print("Check with your course for what to submit -- usually the .json plus a /usage screenshot.")
 
 
 if __name__ == "__main__":
