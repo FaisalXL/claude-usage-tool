@@ -351,15 +351,18 @@ def main():
     # Claude Code logs one JSONL line per content block (thinking, text, each
     # tool_use) that makes up a single assistant turn, not one line per turn --
     # every one of those lines carries the SAME message.usage, repeated
-    # verbatim. Lines sharing a message.id are the same turn, not distinct
-    # turns; confirmed directly against real logs, where a single turn (11
-    # parallel tool calls) was split across 13 lines, each with identical
-    # usage. Summing usage per line (rather than per unique message.id) was
-    # inflating token counts by ~2x on average, and by as much as 13x for a
-    # single heavily-parallel turn. tool_use blocks are NOT affected by this
-    # and must stay counted per line -- each one appears on exactly one line,
-    # never repeated, so per-line counting is already correct there.
-    counted_message_ids = set()
+    # verbatim (except output_tokens -- see below). Lines sharing a
+    # message.id are the same turn, not distinct turns; confirmed directly
+    # against real logs, where a single turn (11 parallel tool calls) was
+    # split across 13 lines. Summing usage per line (rather than per unique
+    # message.id) was inflating token counts by ~2x on average, and by as
+    # much as 13x for a single heavily-parallel turn. tool_use blocks are NOT
+    # affected by this and must stay counted per line -- each one appears on
+    # exactly one line, never repeated, so per-line counting is already
+    # correct there. Maps message.id -> {day_key, model, output} for turns
+    # already counted once; see the output_tokens handling below for why this
+    # needs to track more than just "have I seen this id."
+    turn_state = {}
     duplicate_lines = 0
     skipped_bad_timestamp = 0
     skipped_malformed = 0
@@ -470,19 +473,31 @@ def main():
                         model = msg.get("model", "unknown")
                         usage = msg.get("usage") or {}
                         mid = msg.get("id")
+                        u_input = usage.get("input_tokens", 0)
+                        u_cache_creation = usage.get("cache_creation_input_tokens", 0)
+                        u_cache_read = usage.get("cache_read_input_tokens", 0)
+                        u_output = usage.get("output_tokens", 0)
 
-                        # Count usage/turns once per unique message.id. A
-                        # missing id can't be correlated against anything, so
-                        # it's always treated as its own turn rather than
-                        # risking under-counting real, distinct usage.
-                        if mid is None or mid not in counted_message_ids:
-                            u_input = usage.get("input_tokens", 0)
-                            u_cache_creation = usage.get("cache_creation_input_tokens", 0)
-                            u_cache_read = usage.get("cache_read_input_tokens", 0)
-                            u_output = usage.get("output_tokens", 0)
-                            inp = u_input + u_cache_creation + u_cache_read
-                            out = u_output
-
+                        # input/cache_creation/cache_read are fixed before
+                        # generation starts and never vary across a turn's
+                        # split lines -- confirmed directly (0 exceptions
+                        # across 1,335 real multi-line turns). output_tokens
+                        # is different: it's still mid-flight on earlier
+                        # lines and grows monotonically as the turn streams
+                        # out (also confirmed directly, non-decreasing with
+                        # zero exceptions), so counting it on first sight
+                        # under-counts real output by ~2%. Rather than key
+                        # this off "first" vs "last" line -- which would
+                        # require buffering instead of streaming -- track the
+                        # running output_tokens per message.id and add only
+                        # the delta each time a later line reports a higher
+                        # value, which gives the same result as keeping the
+                        # last line without giving up single-pass streaming.
+                        # model is confirmed constant across a turn's lines
+                        # too (0 exceptions), so it's safe to attribute output
+                        # deltas to the model/day recorded at first sight.
+                        state = turn_state.get(mid) if mid is not None else None
+                        if state is None:
                             tokens_input += u_input
                             tokens_cache_creation += u_cache_creation
                             tokens_cache_read += u_cache_read
@@ -494,15 +509,26 @@ def main():
 
                             m = model_usage.setdefault(model, {"turns": 0, "input_tokens": 0, "output_tokens": 0})
                             m["turns"] += 1
-                            m["input_tokens"] += inp
-                            m["output_tokens"] += out
+                            m["input_tokens"] += u_input + u_cache_creation + u_cache_read
+                            m["output_tokens"] += u_output
                             dm = d["model_usage"].setdefault(model, {"turns": 0, "input_tokens": 0, "output_tokens": 0})
                             dm["turns"] += 1
-                            dm["input_tokens"] += inp
-                            dm["output_tokens"] += out
+                            dm["input_tokens"] += u_input + u_cache_creation + u_cache_read
+                            dm["output_tokens"] += u_output
 
+                            # A missing id can't be correlated against
+                            # anything later, so there's nothing to track --
+                            # it's always treated as its own turn, same as
+                            # before.
                             if mid is not None:
-                                counted_message_ids.add(mid)
+                                turn_state[mid] = {"day_key": day_key, "model": model, "output": u_output}
+                        elif u_output > state["output"]:
+                            delta = u_output - state["output"]
+                            tokens_output += delta
+                            daily[state["day_key"]]["tokens_output"] += delta
+                            model_usage[state["model"]]["output_tokens"] += delta
+                            daily[state["day_key"]]["model_usage"][state["model"]]["output_tokens"] += delta
+                            state["output"] = u_output
 
                         # tool_use blocks are unaffected by the dedup above --
                         # each one is logged on exactly one line, never
