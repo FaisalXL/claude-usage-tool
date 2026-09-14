@@ -66,6 +66,9 @@ UPDATE_TIMEOUT_SECONDS = 4
 CODE_TOOLS = {"Edit", "Write", "Bash", "NotebookEdit"}
 AGENT_TOOLS = {"Task", "Agent"}
 
+ASSIGNMENT_ROOT_KEY = "(course root)"  # bucket for activity whose cwd is repo_root itself,
+                                        # not inside any assignment subfolder
+
 LOCAL_WINDOW_HOURS = 5  # matches Claude Code's own 5-hour rate-limit accounting window
 
 
@@ -392,6 +395,29 @@ def main():
         "touched_files": set(),
     })
 
+    # Same shape and same reasoning as `daily` above, but bucketed by the
+    # top-level folder under repo_root instead of by calendar day -- lets a
+    # grader compare one specific assignment's usage against that
+    # assignment's own threshold, instead of only the whole-course total.
+    # This is a REPORTING breakdown only, computed the same way for every
+    # line the whole-course scan already matched -- it does not change what
+    # counts as "under repo_root" (still path_is_under against the outermost
+    # marker, same as ever) and there is no flag or cwd trick a student can
+    # use to make only one assignment's activity appear. A session whose cwd
+    # IS repo_root itself (not inside any subfolder) buckets under
+    # ASSIGNMENT_ROOT_KEY rather than being dropped or mis-attributed.
+    by_assignment = defaultdict(lambda: {
+        "sessions": set(),
+        "tokens_input": 0,
+        "tokens_cache_creation": 0,
+        "tokens_cache_read": 0,
+        "tokens_output": 0,
+        "model_usage": {},
+        "tool_counts": {},
+        "total_tool_calls": 0,
+        "touched_files": set(),
+    })
+
     hasher = hashlib.sha256()
     seen_line_digests = set()   # exact-duplicate suppression, see below
     # Claude Code logs one JSONL line per content block (thinking, text, each
@@ -491,6 +517,24 @@ def main():
                 d = daily[day_key]
                 d["sessions"].add(session_id)
 
+                # Top-level folder under repo_root, e.g. "hw3" for
+                # <repo_root>/hw3/subdir -- computed per line, not once per
+                # session, since a student can cd between assignments within
+                # one continuous session and cwd is logged per message.
+                try:
+                    rel_parts = Path(resolved_cwd).relative_to(repo_root).parts
+                    assignment_key = rel_parts[0] if rel_parts else ASSIGNMENT_ROOT_KEY
+                except ValueError:
+                    # path_is_under() already confirmed containment, possibly
+                    # via samefile() rather than a string prefix match (case-
+                    # insensitive filesystem, symlink) -- relative_to() is a
+                    # plain string operation and can fail in exactly that
+                    # case even though containment is real. Falls back to the
+                    # root bucket rather than crashing the whole report.
+                    assignment_key = ASSIGNMENT_ROOT_KEY
+                a = by_assignment[assignment_key]
+                a["sessions"].add(session_id)
+
                 # Everything below reads into the message body, whose exact
                 # shape is Anthropic's to change. One unexpected line should
                 # cost that line, not the entire report -- the count is
@@ -552,6 +596,10 @@ def main():
                             d["tokens_cache_creation"] += u_cache_creation
                             d["tokens_cache_read"] += u_cache_read
                             d["tokens_output"] += u_output
+                            a["tokens_input"] += u_input
+                            a["tokens_cache_creation"] += u_cache_creation
+                            a["tokens_cache_read"] += u_cache_read
+                            a["tokens_output"] += u_output
 
                             m = model_usage.setdefault(model, {"turns": 0, "input_tokens": 0, "output_tokens": 0})
                             m["turns"] += 1
@@ -561,19 +609,30 @@ def main():
                             dm["turns"] += 1
                             dm["input_tokens"] += u_input + u_cache_creation + u_cache_read
                             dm["output_tokens"] += u_output
+                            am = a["model_usage"].setdefault(model, {"turns": 0, "input_tokens": 0, "output_tokens": 0})
+                            am["turns"] += 1
+                            am["input_tokens"] += u_input + u_cache_creation + u_cache_read
+                            am["output_tokens"] += u_output
 
                             # A missing id can't be correlated against
                             # anything later, so there's nothing to track --
                             # it's always treated as its own turn, same as
                             # before.
                             if mid is not None:
-                                turn_state[mid] = {"day_key": day_key, "model": model, "output": u_output}
+                                turn_state[mid] = {
+                                    "day_key": day_key,
+                                    "assignment_key": assignment_key,
+                                    "model": model,
+                                    "output": u_output,
+                                }
                         elif u_output > state["output"]:
                             delta = u_output - state["output"]
                             tokens_output += delta
                             daily[state["day_key"]]["tokens_output"] += delta
+                            by_assignment[state["assignment_key"]]["tokens_output"] += delta
                             model_usage[state["model"]]["output_tokens"] += delta
                             daily[state["day_key"]]["model_usage"][state["model"]]["output_tokens"] += delta
+                            by_assignment[state["assignment_key"]]["model_usage"][state["model"]]["output_tokens"] += delta
                             state["output"] = u_output
 
                         # tool_use blocks are unaffected by the dedup above --
@@ -589,11 +648,14 @@ def main():
                                 total_tool_calls += 1
                                 d["tool_counts"][name] = d["tool_counts"].get(name, 0) + 1
                                 d["total_tool_calls"] += 1
+                                a["tool_counts"][name] = a["tool_counts"].get(name, 0) + 1
+                                a["total_tool_calls"] += 1
                                 block_input = block.get("input")
                                 fp = block_input.get("file_path") if isinstance(block_input, dict) else None
                                 if fp:
                                     touched_files.add(fp)
                                     d["touched_files"].add(fp)
+                                    a["touched_files"].add(fp)
                                 tool_timeline.append((ts, name, fp))
                 except Exception:
                     skipped_malformed += 1
@@ -718,6 +780,44 @@ def main():
             "total_tool_calls": d["total_tool_calls"],
         }
 
+    # Same rerun, bucketed by top-level assignment folder instead of day --
+    # see the by_assignment accumulator's own comment for why this exists
+    # and why it's a reporting breakdown only, not a scoping mechanism.
+    assignment_breakdown = {}
+    for assignment_key in sorted(by_assignment):
+        a = by_assignment[assignment_key]
+        a_code_calls = sum(a["tool_counts"].get(t, 0) for t in CODE_TOOLS)
+        a_agent_calls = sum(a["tool_counts"].get(t, 0) for t in AGENT_TOOLS)
+        a_real_files = set()
+        for fp in a["touched_files"]:
+            try:
+                resolved = str(Path(fp).resolve())
+            except OSError:
+                resolved = fp
+            if path_is_under(resolved, repo_root):
+                a_real_files.add(fp)
+
+        assignment_breakdown[assignment_key] = {
+            "sessions": len(a["sessions"]),
+            "token_usage": {
+                "effective": a["tokens_input"] + a["tokens_cache_creation"] + a["tokens_output"],
+                "cache_reread": a["tokens_cache_read"],
+                "total": a["tokens_input"] + a["tokens_cache_creation"] + a["tokens_cache_read"] + a["tokens_output"],
+                "breakdown": {
+                    "input": a["tokens_input"],
+                    "cache_creation": a["tokens_cache_creation"],
+                    "cache_read": a["tokens_cache_read"],
+                    "output": a["tokens_output"],
+                },
+            },
+            "model_usage": a["model_usage"],
+            "code_ratio": round(a_code_calls / a["total_tool_calls"], 3) if a["total_tool_calls"] else 0,
+            "subagent_fraction": round(a_agent_calls / a["total_tool_calls"], 3) if a["total_tool_calls"] else 0,
+            "file_overlap": round(len(a_real_files) / len(a["touched_files"]), 3) if a["touched_files"] else 0,
+            "tool_counts": a["tool_counts"],
+            "total_tool_calls": a["total_tool_calls"],
+        }
+
     # Field definitions (input_tokens, cache_creation_input_tokens,
     # cache_read_input_tokens, output_tokens) are Anthropic's own, documented
     # at https://platform.claude.com/docs/en/build-with-claude/prompt-caching
@@ -799,8 +899,14 @@ def main():
         "lines_skipped_malformed": skipped_malformed,
         # Deliberately last -- the aggregate fields above are what a student
         # eyeballs at a glance; this is the detail for actually digging into
-        # what happened on a specific day.
+        # what happened on a specific day, or (below) a specific assignment.
         "daily_breakdown": daily_breakdown,
+        # A reporting breakdown only, not a scoping mechanism -- computed the
+        # same way for every line the whole-course scan already matched, so
+        # there is no flag or cwd trick that changes what counts. Lets a
+        # grader compare one assignment's usage against that assignment's own
+        # threshold instead of only the whole-course total.
+        "assignment_breakdown": assignment_breakdown,
         # Truly last -- almost never looked at directly by a student or a
         # grader; it only matters on the rare occasion someone needs to
         # confirm a submitted transcript matches the submitted report.
