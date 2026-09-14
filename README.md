@@ -1,10 +1,10 @@
 # claude-usage-tool
 
-This tool verifies purposeful Claude Code usage for coursework. It tracks per-model token usage. It detects real rate-limit hits. It flags gamed usage. It requires no manual log review.
+This tool measures how much a student actually iterates with Claude Code on their coursework. It tracks per-model token usage and detects real rate-limit hits. It requires no manual log review.
 
 ## The problem
 
-Assignment include hitting the rate limit multiple times per week. Students can game these requirements. The agents burn tokens without doing real work. This tool verifies purposeful usage. It works automatically at class scale.
+Assignments expect students to rely on Claude Code the way working developers do -- as a constant, iterative collaborator, not a one-shot answer machine. This tool is a meter, not an enforcement mechanism: it gives students and the course a concrete number to check usage against, so "am I actually iterating enough for this to be meaningful" has a real answer instead of a guess. It works automatically at class scale.
 ## How it works
 
 The tool is a Claude Code Skill. Students run `/weekly-report` once per week. The skill reads local session logs at `~/.claude/projects/**/*.jsonl`. It requires no telemetry, server, or account access. The skill produces two files, named by the date the report was generated:
@@ -26,6 +26,10 @@ A hash links both files. The hash detects tampering with either file.
 ### Zero-config by design
 
 The tool needs no git installation and no manual path configuration. `/weekly-report` itself is always recognized, from anywhere, since it's installed personally rather than discovered per-folder. Once invoked, it searches upward from wherever you are for the course root -- this works from any subfolder, in any assignment, regardless of whether that subfolder has its own git repo.
+
+### Stays current automatically
+
+Every run of `weekly_report.py` -- via `/weekly-report`, a raw `python3` call, or a fresh `install.py` -- checks GitHub for a newer version of itself and updates in place before doing anything else. A fix or field change reaches every student on their next run, no reinstall needed. If GitHub is unreachable, it fails silently and just runs the current version.
 
 ## Setup
 
