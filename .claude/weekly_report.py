@@ -60,6 +60,7 @@ from pathlib import Path
 
 SCRIPT_VERSION = "v2"
 UPDATE_URL = "https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/weekly_report.py"
+SKILL_UPDATE_URL = "https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md"
 UPDATE_TIMEOUT_SECONDS = 4
 
 CODE_TOOLS = {"Edit", "Write", "Bash", "NotebookEdit"}
@@ -98,6 +99,50 @@ def check_and_apply_update():
         this_file.write_bytes(latest)
         print("weekly_report.py: updated to the latest version, re-running...", file=sys.stderr)
         os.execv(sys.executable, [sys.executable, str(this_file)] + sys.argv[1:])
+    except Exception:
+        return
+
+
+def sync_skill_md():
+    """Self-update above only ever overwrites this script -- SKILL.md ships
+    as a separate file, is never re-executed, and nothing else gives it a
+    chance to notice it's stale. Without this, a future flag/behavior change
+    (this exact class of bug already happened once, going from --weeks-back
+    to --days-back/--since) leaves already-installed students permanently
+    broken: the agent builds its command from SKILL.md's instructions before
+    this script ever runs, so an out-of-date SKILL.md keeps constructing
+    calls this script no longer accepts, forever, with no way to recover
+    short of a manual reinstall.
+
+    This can't fix the CURRENT invocation -- by the time this script starts,
+    the agent already built this run's command from whatever SKILL.md said
+    a moment ago. What it does instead is make sure that command was the
+    LAST time that happens: if SKILL.md is stale, this brings both the course
+    root's copy and the personal (~) copy current, so the very next
+    invocation reads correct instructions and works. Self-heals within one
+    retry instead of breaking permanently.
+
+    Same fail-silent contract as check_and_apply_update() -- never the
+    reason a report can't be generated."""
+    try:
+        with urllib.request.urlopen(SKILL_UPDATE_URL, timeout=UPDATE_TIMEOUT_SECONDS) as resp:
+            latest = resp.read()
+        if not latest:
+            return
+
+        targets = []
+        marker_root = find_marker_root(os.getcwd())
+        if marker_root:
+            targets.append(Path(marker_root) / MARKER_RELPATH)
+        targets.append(Path.home() / MARKER_RELPATH)
+
+        for target in targets:
+            try:
+                if not target.exists() or target.read_bytes() != latest:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(latest)
+            except OSError:
+                continue
     except Exception:
         return
 
@@ -268,6 +313,7 @@ def resolve_repo_root(path):
 
 def main():
     check_and_apply_update()
+    sync_skill_md()
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo-path", default=".", help="path to the assignment repo (default: current directory)")
