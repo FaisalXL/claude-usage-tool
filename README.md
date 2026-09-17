@@ -49,12 +49,4 @@ Defaults to the last 7 days. To catch up after missing a week, ask for more days
 - **`limit_hit_episodes`** — distinct rate-limit hits, deduplicated, with burst-vs-baseline tool-call ratios around each one.
 - **`integrity_hash_sha256`** — sha256 of the paired transcript, for spot-checking a submitted report against its transcript.
 
-## Known limitations
 
-- `token_usage.effective` is this tool's own methodology, not an Anthropic-published metric — Anthropic documents the four raw usage fields and their billing ([prompt-caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), [messages/create](https://platform.claude.com/docs/en/api/messages/create)) but only publishes the trivial sum as a combining formula. It doesn't normalize for model choice or task shape.
-- The burst check catches fast, parallel gaming; `code_ratio` and `file_overlap` are what catch slow, sequential gaming.
-- The transcript file contains full conversation content — prompts and tool outputs, not just metrics. Students should know this is collected.
-
-## Validation
-
-Detection schema and burst logic were validated against a real, deliberately-triggered rate-limit event (`"error": "rate_limit"`, `apiErrorStatus: 429`), not from documentation alone.
