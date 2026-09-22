@@ -355,7 +355,18 @@ def main():
     # Named by range_end's date (when the report was generated), not
     # range_start -- range_end is the stable, always-"today" value; range_start
     # drifts by less than a day on every run and isn't a meaningful label.
-    stem = range_end.date().isoformat()
+    #
+    # .astimezone() first, not .date() directly on the UTC-aware datetime --
+    # range_end is UTC, and UTC midnight falls in the evening across the US,
+    # so a student running this in the evening got a filename dated
+    # "tomorrow" relative to their own clock (confirmed directly: a report
+    # run at 6:10pm Pacific, range_end 01:10 UTC the next calendar day,
+    # produced a filename one day ahead of when it was actually run, even
+    # though the window itself -- computed via resolve_window() -- was
+    # already correctly local-time-based). Every other per-day computation
+    # in this file already does .astimezone() before .date(); this was the
+    # one place that didn't.
+    stem = range_end.astimezone().date().isoformat()
     report_path = out_dir / f"{stem}.json"
     transcript_path = out_dir / f"{stem}.transcript.jsonl"
 
