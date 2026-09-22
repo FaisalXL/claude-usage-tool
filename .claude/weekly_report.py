@@ -58,7 +58,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-SCRIPT_VERSION = "v3"
+SCRIPT_VERSION = "v3.1"
 UPDATE_URL = "https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/weekly_report.py"
 SKILL_UPDATE_URL = "https://raw.githubusercontent.com/FaisalXL/claude-usage-tool/main/.claude/skills/weekly-report/SKILL.md"
 UPDATE_TIMEOUT_SECONDS = 4
